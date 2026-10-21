@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админка Dagmenty v3</title>
+    <style>
+        body { background-color: #0d0d0d; color: #fff; font-family: sans-serif; padding: 20px; }
+        h1 { color: #ff00ff; text-align: center; text-shadow: 0 0 10px #ff00ff; font-size: 24px; }
+        h2 { color: #00ffff; font-size: 18px; margin-top: 30px; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #00ffff; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #ff00ff; color: #000; border: none; border-radius: 5px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:active { background: #00ffff; }
+        .msg { text-align: center; margin-top: 15px; font-weight: bold; }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        
+        .product-item { background: #151515; border: 1px solid #333; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .product-info { flex-grow: 1; min-width: 150px; }
+        .product-title { font-weight: bold; font-size: 16px; color: #fff; }
+        .product-price { color: #00ffff; font-size: 14px; margin-top: 5px; }
+        .actions { display: flex; gap: 5px; }
+        .btn-edit { background: #ffa500; color: #000; padding: 8px 12px; border: none; border-radius: 5px; font-size: 14px; cursor: pointer; width: auto; margin: 0; }
+        .delete-btn { background: #ff0000; color: #fff; padding: 8px 12px; border: none; border-radius: 5px; font-size: 14px; cursor: pointer; width: auto; margin: 0; }
+    </style>
+</head>
+<body>
+
+    <script>
+        var password = prompt("Введите пароль для входа в админку:");
+        if (password !== "temkai89891oiqavodrumka4") {
+            document.body.innerHTML = "<h1 style='color:red; text-align:center; margin-top:50px;'>Доступ запрещен</h1>";
+            document.body.style.display = "none";
+        }
+    </script>
+
+    <h1>АДМИНКА v3</h1>
+
+    <h2>Добавить / Редактировать товар</h2>
+    <input type="hidden" id="edit-id" value="">
+    
+    <div class="form-group">
+        <label>Название</label>
+        <input type="text" id="title">
+    </div>
+    <div class="form-group">
+        <label>Цена (₽)</label>
+        <input type="number" id="price">
+    </div>
+    <div class="form-group">
+        <label>Категория</label>
+        <select id="category">
+            <option value="strategy">Стратегии</option>
+            <option value="survival">Выживание</option>
+            <option value="shooter">Шутеры</option>
+            <option value="rpg">РПГ</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Описание</label>
+        <textarea id="description" rows="3"></textarea>
+    </div>
+    <button onclick="saveProduct()" id="save-btn">ДОБАВИТЬ В МАГАЗИН</button>
+    <button onclick="cancelEdit()" id="cancel-btn" style="background: #333; color: #fff; display: none; margin-top: 5px;">ОТМЕНИТЬ РЕДАКТИРОВАНИЕ</button>
+    <div id="message" class="msg"></div>
+
+    <h2>Список товаров</h2>
+    <div id="product-list">
+        Загрузка товаров...
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://qkrwmswyhkkujzmqjfpi.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_J1l7LhGL2WCUaymu1jihJg_OE7IpYnt';
+        let allProducts = [];
+
+        // Загрузка товаров
+        async function loadProducts() {
+            const list = document.getElementById('product-list');
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*&order=id.desc`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                allProducts = await response.json();
+
+                if (allProducts.length === 0) {
+                    list.innerHTML = '<p style="text-align:center; color:#aaa;">Товаров пока нет.</p>';
+                    return;
+                }
+
+                list.innerHTML = '';
+                allProducts.forEach(product => {
+                    const item = document.createElement('div');
+                    item.className = 'product-item';
+                    item.innerHTML = `
+                        <div class="product-info">
+                            <div class="product-title">${product.title}</div>
+                            <div class="product-price">${product.price} ₽</div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn-edit" onclick="editProduct(${product.id})">Изменить</button>
+                            <button class="delete-btn" onclick="deleteProduct(${product.id})">Удалить</button>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (error) {
+                list.innerHTML = '<p style="text-align:center; color:red;">Ошибка загрузки списка.</p>';
+            }
+        }
+
+        // Сохранение (добавление или обновление)
+        async function saveProduct() {
+            const id = document.getElementById('edit-id').value;
+            const title = document.getElementById('title').value;
+            const price = document.getElementById('price').value;
+            const category = document.getElementById('category').value;
+            const description = document.getElementById('description').value;
+            const msg = document.getElementById('message');
+
+            if (!title || !price) {
+                msg.className = 'msg error';
+                msg.innerText = 'Заполни название и цену!';
+                return;
+            }
+
+            msg.className = 'msg';
+            msg.innerText = 'Отправляем...';
+
+            const data = { title: title, price: parseInt(price), game_category: category, description: description };
+            let url = `${SUPABASE_URL}/rest/v1/products`;
+            let method = 'POST';
+
+            if (id) {
+                // Если есть ID, значит мы обновляем (PATCH)
+                url += `?id=eq.${id}`;
+                method = 'PATCH';
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    msg.className = 'msg success';
+                    msg.innerText = id ? 'Товар обновлен!' : 'Товар добавлен!';
+                    cancelEdit(); // Очищаем форму
+                    loadProducts(); // Обновляем список
+                } else {
+                    throw new Error('Ошибка сервера');
+                }
+            } catch (error) {
+                msg.className = 'msg error';
+                msg.innerText = 'Ошибка: ' + error.message;
+            }
+        }
+
+        // Удаление
+        async function deleteProduct(id) {
+            if (!confirm('Точно удалить этот товар?')) return;
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${id}`, {
+                    method: 'DELETE',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                if (response.ok) loadProducts();
+                else alert('Ошибка при удалении');
+            } catch (error) { alert('Ошибка: ' + error.message); }
+        }
+
+        // Редактирование (заполняем форму)
+        function editProduct(id) {
+            const product = allProducts.find(p => p.id === id);
+            if (!product) return;
+
+            document.getElementById('edit-id').value = product.id;
+            document.getElementById('title').value = product.title;
+            document.getElementById('price').value = product.price;
+            document.getElementById('category').value = product.game_category;
+            document.getElementById('description').value = product.description;
+
+            document.getElementById('save-btn').innerText = 'СОХРАНИТЬ ИЗМЕНЕНИЯ';
+            document.getElementById('cancel-btn').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' }); // Скроллим наверх к форме
+        }
+
+        // Отмена редактирования
+        function cancelEdit() {
+            document.getElementById('edit-id').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('price').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('save-btn').innerText = 'ДОБАВИТЬ В МАГАЗИН';
+            document.getElementById('cancel-btn').style.display = 'none';
+        }
+
+        loadProducts();
+    </script>
+</body>
+</html>

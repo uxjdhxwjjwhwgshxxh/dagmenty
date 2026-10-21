@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dagmenty Katarsis</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: #0d0d0d; color: #fff; padding-bottom: 70px; }
+        .header { padding: 20px 15px; text-align: center; background: linear-gradient(180deg, #1a001a 0%, #0d0d0d 100%); border-bottom: 1px solid #ff00ff33; }
+        .header h1 { color: #ff00ff; font-size: 24px; letter-spacing: 1px; text-shadow: 0 0 10px #ff00ff88; }
+        .header p { color: #888; font-size: 13px; margin-top: 5px; }
+        
+        .categories { display: flex; overflow-x: auto; padding: 15px; gap: 10px; scrollbar-width: none; }
+        .categories::-webkit-scrollbar { display: none; }
+        .cat-btn { background: #1a1a1a; color: #aaa; border: 1px solid #333; padding: 8px 16px; border-radius: 20px; font-size: 14px; white-space: nowrap; cursor: pointer; transition: 0.3s; }
+        .cat-btn.active { background: #00ffff; color: #000; border-color: #00ffff; font-weight: bold; box-shadow: 0 0 10px #00ffff66; }
+        
+        .catalog { padding: 0 15px; display: grid; gap: 15px; }
+        .card { background: #151515; border-radius: 12px; padding: 15px; border: 1px solid #222; display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden; }
+        .card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #ff00ff; }
+        .card-title { font-size: 16px; font-weight: bold; }
+        .card-desc { font-size: 13px; color: #888; }
+        .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; }
+        .price { color: #00ffff; font-weight: bold; font-size: 16px; }
+        .buy-btn { background: transparent; color: #ff00ff; border: 1px solid #ff00ff; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+        
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 10px 0; z-index: 10; }
+        .nav-item { color: #555; font-size: 11px; text-align: center; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+        .nav-item.active { color: #00ffff; }
+        .nav-icon { font-size: 20px; }
+
+        /* Стили для профиля */
+        #profile-panel { display: none; padding: 20px 15px; text-align: center; }
+        .avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid #ff00ff; margin: 0 auto 15px; display: block; background: #333; object-fit: cover; }
+        .profile-name { font-size: 22px; font-weight: bold; margin-bottom: 5px; }
+        .profile-balance { color: #00ffff; font-size: 18px; font-weight: bold; margin-bottom: 20px; }
+        .profile-section { background: #151515; padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: left; border: 1px solid #222; }
+        .profile-section h3 { color: #ff00ff; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <!-- ГЛАВНАЯ СТРАНИЦА (МАГАЗИН) -->
+    <div id="shop-panel">
+        <div class="header">
+            <h1>DAGMENTY KATARSIS</h1>
+            <p>Магазин игровых аккаунтов</p>
+        </div>
+
+        <div class="categories">
+            <button class="cat-btn active" onclick="filterCatalog('all', this)">Все игры</button>
+            <button class="cat-btn" onclick="filterCatalog('strategy', this)">Стратегии</button>
+            <button class="cat-btn" onclick="filterCatalog('survival', this)">Выживание</button>
+            <button class="cat-btn" onclick="filterCatalog('shooter', this)">Шутеры</button>
+            <button class="cat-btn" onclick="filterCatalog('rpg', this)">РПГ</button>
+        </div>
+
+        <div class="catalog" id="catalog">
+            <div style="text-align:center; padding: 20px; color: #aaa;">Загрузка товаров...</div>
+        </div>
+    </div>
+
+    <!-- СТРАНИЦА ПРОФИЛЯ -->
+    <div id="profile-panel">
+        <img src="" id="user-avatar" class="avatar">
+        <div class="profile-name" id="user-name">Загрузка...</div>
+        <div class="profile-balance">Баланс: <span id="user-balance">0</span> ⚡</div>
+        
+        <div class="profile-section">
+            <h3>Мои покупки</h3>
+            <p style="color: #888; font-size: 14px;">У вас пока нет покупок.</p>
+        </div>
+
+        <div class="profile-section">
+            <h3>Реферальная программа</h3>
+            <p style="color: #888; font-size: 14px;">Пригласи друга и получи 100 ⚡ после его первой покупки!</p>
+        </div>
+    </div>
+
+    <!-- НИЖНЕЕ МЕНЮ -->
+    <div class="bottom-nav" id="main-nav">
+        <div class="nav-item active" onclick="openShop()" id="nav-catalog"><span class="nav-icon">🛒</span>Каталог</div>
+        <div class="nav-item" onclick="openProfile()" id="nav-profile"><span class="nav-icon">👤</span>Профиль</div>
+        <div class="nav-item" onclick="openSupport()"><span class="nav-icon">💬</span>Поддержка</div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://qkrwmswyhkkujzmqjfpi.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_J1l7LhGL2WCUaymu1jihJg_OE7IpYnt';
+
+        let userProfile = null;
+
+        // 1. Инициализация Telegram и получение данных пользователя
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+            const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+            
+            if (tgUser) {
+                userProfile = {
+                    id: tgUser.id,
+                    first_name: tgUser.first_name,
+                    username: tgUser.username || 'user_' + tgUser.id,
+                    avatar_url: tgUser.photo_url || 'https://telegram.org/img/t_logo.png'
+                };
+                // Запускаем проверку/создание профиля в базе
+                checkOrCreateProfile();
+            }
+        }
+
+        // 2. Проверка профиля в базе (если нет - создаем)
+        async function checkOrCreateProfile() {
+            if (!userProfile) return;
+
+            try {
+                // Ищем пользователя по ID
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userProfile.id}`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                const data = await response.json();
+
+                if (data.length === 0) {
+                    // Если не нашли — создаем
+                    await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify(userProfile)
+                    });
+                } else {
+                    // Если нашли — обновляем данные на актуальные
+                    userProfile = data[0]; 
+                }
+
+                // Обновляем интерфейс профиля
+                document.getElementById('user-name').innerText = userProfile.first_name;
+                document.getElementById('user-balance').innerText = userProfile.balance;
+                document.getElementById('user-avatar').src = userProfile.avatar_url;
+
+            } catch (error) {
+                console.error('Ошибка профиля:', error);
+            }
+        }
+
+        // 3. Загрузка товаров
+        async function loadProducts() {
+            const catalog = document.getElementById('catalog');
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                const products = await response.json();
+
+                if (products.length === 0) {
+                    catalog.innerHTML = '<div style="text-align:center; padding: 20px; color: #aaa;">Товаров пока нет.</div>';
+                    return;
+                }
+
+                catalog.innerHTML = ''; 
+                products.forEach(product => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.setAttribute('data-cat', product.game_category || 'all');
+                    card.innerHTML = `
+                        <div class="card-title">${product.title}</div>
+                        <div class="card-desc">${product.description || 'Описание отсутствует'}</div>
+                        <div class="card-footer">
+                            <div class="price">${product.price} ₽</div>
+                            <button class="buy-btn" onclick="showAlert('Оплата скоро появится!')">Купить</button>
+                        </div>
+                    `;
+                    catalog.appendChild(card);
+                });
+            } catch (error) {
+                catalog.innerHTML = '<div style="text-align:center; padding: 20px; color: red;">Ошибка загрузки товаров.</div>';
+            }
+        }
+
+        // 4. Переключение вкладок
+        function openShop() {
+            document.getElementById('shop-panel').style.display = 'block';
+            document.getElementById('profile-panel').style.display = 'none';
+            document.getElementById('nav-catalog').classList.add('active');
+            document.getElementById('nav-profile').classList.remove('active');
+        }
+
+        function openProfile() {
+            document.getElementById('shop-panel').style.display = 'none';
+            document.getElementById('profile-panel').style.display = 'block';
+            document.getElementById('nav-catalog').classList.remove('active');
+            document.getElementById('nav-profile').classList.add('active');
+        }
+
+        function filterCatalog(category, btn) {
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.card').forEach(card => {
+                if (category === 'all' || card.getAttribute('data-cat') === category) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function showAlert(text) {
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.showAlert(text);
+            } else {
+                alert(text);
+            }
+        }
+
+        function openSupport() {
+            const supportLink = "https://t.me/rumdrunk";
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.openTelegramLink(supportLink);
+            } else {
+                window.open(supportLink, '_blank');
+            }
+        }
+
+        loadProducts();
+    </script>
+</body>
+</html>
